@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Image Gallery (autoindex viewer)</title>
+  <style>
+    :root { --gap: 12px; --tile: 180px; }
+    body { font-family: system-ui, sans-serif; margin: 20px; }
+    header { display:flex; align-items:center; gap:10px; flex-wrap: wrap; }
+    h1 { font-size: 1.1rem; margin: 0; font-weight: 600; }
+    #crumbs a { color: #0a58ca; text-decoration: none; }
+    #crumbs a:hover { text-decoration: underline; }
+    #status { color: #666; font-size: .9rem; }
+    .grid { display: flex; flex-wrap: wrap; gap: var(--gap); margin-top: 12px; }
+    .item { width: var(--tile); text-align: center; font-size: 0.85rem; }
+    .item a { text-decoration: none; color: #333; }
+    .thumb { width: var(--tile); height: 140px; display:grid; place-items:center; border: 1px solid #eee; border-radius: 10px; overflow: hidden; background: #fafafa; }
+    .thumb img { max-width: 100%; max-height: 100%; object-fit: contain; display:block; }
+    .folder { font-size: 48px; line-height: 1; }
+    .name { margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Image Gallery</h1>
+    <div id="crumbs"></div>
+    <div id="status" class="hidden"></div>
+  </header>
+
+  <div id="grid" class="grid"></div>
+
+  <script>
+  (function(){
+    const grid = document.getElementById('grid');
+    const crumbs = document.getElementById('crumbs');
+    const status = document.getElementById('status');
+
+    function showStatus(msg, isError=false){
+      status.textContent = msg || '';
+      status.className = msg ? (isError ? '' : '') : 'hidden';
+    }
+
+    function normPath(p){
+      if (!p) return '/';
+      try { p = decodeURIComponent(p); } catch(_){}
+      if (!p.startsWith('/')) p = '/' + p;
+      if (!p.endsWith('/')) p += '/';
+      return p;
+    }
+
+    function buildAbsURL(path){
+      return new URL(normPath(path), location.origin);
+    }
+
+    function setURL(path){
+      const qp = new URLSearchParams(location.search);
+      qp.set('p', normPath(path));
+      history.pushState({p: normPath(path)}, '', location.pathname + '?' + qp.toString());
+    }
+
+    function renderCrumbs(path){
+      crumbs.innerHTML = '';
+      const parts = normPath(path).split('/').filter(Boolean);
+      let acc = '/';
+      const root = document.createElement('a');
+      root.href = '#'; root.textContent = '/';
+      root.addEventListener('click', (e)=>{ e.preventDefault(); navigate('/'); });
+      crumbs.appendChild(root);
+      for(const part of parts){
+        const sep = document.createTextNode(' / ');
+        crumbs.appendChild(sep);
+        acc += part + '/';
+        const a = document.createElement('a');
+        a.href = '#'; a.textContent = part;
+        a.addEventListener('click', (e)=>{ e.preventDefault(); navigate(acc); });
+        crumbs.appendChild(a);
+      }
+    }
+
+    async function loadDir(path){
+      const dirURL = buildAbsURL(path);
+      showStatus('Loading ' + dirURL.pathname + ' …');
+      grid.innerHTML = '';
+      renderCrumbs(dirURL.pathname);
+
+      let res;
+      try {
+        res = await fetch(dirURL.pathname, { credentials: 'same-origin' });
+      } catch(err){
+        showStatus('Fetch error: ' + err.message, true);
+        return;
+      }
+      if(!res.ok){
+        showStatus('HTTP ' + res.status + ' loading ' + dirURL.pathname, true);
+        return;
+      }
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const anchors = Array.from(doc.querySelectorAll('a'));
+
+      const IMG_RE = /\.(png|jpe?g|gif|webp|svg)$/i;
+
+      // Nginx autoindex often has Parent Directory as "../"; skip that.
+      const items = anchors
+        .map(a => a.getAttribute('href'))
+        .filter(href => href && href !== '../')
+        .map(href => ({ href, isDir: href.endsWith('/'), isImg: IMG_RE.test(href) }));
+
+      // Folders first, then files by name
+      items.sort((a,b)=>{
+        if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
+        return a.href.localeCompare(b.href);
+      });
+
+      if(items.length === 0){
+        showStatus('Empty directory.');
+        return;
+      }
+
+      for(const it of items){
+        if (!it.isDir && !it.isImg) continue; // show only folders + image files
+        const full = new URL(it.href, dirURL).pathname; // NOTE: base must be absolute URL
+
+        const wrap = document.createElement('div');
+        wrap.className = 'item';
+
+        const tile = document.createElement('a');
+        tile.href = '#';
+        tile.className = 'thumb';
+
+        const name = document.createElement('div');
+        name.className = 'name';
+        name.textContent = decodeURIComponent(it.href.replace(/\/$/, ''));
+
+        if(it.isDir){
+          const icon = document.createElement('div');
+          icon.className = 'folder';
+          icon.textContent = '📁';
+          tile.appendChild(icon);
+          tile.addEventListener('click', (e)=>{ e.preventDefault(); navigate(full); });
+        } else if (it.isImg){
+          const img = document.createElement('img');
+          img.loading = 'eager';
+          img.decoding = 'async';
+          img.src = full;
+          tile.appendChild(img);
+          // click opens original image in new tab
+          tile.addEventListener('click', (e)=>{ e.preventDefault(); window.open(full, '_blank'); });
+        }
+
+        wrap.appendChild(tile);
+        wrap.appendChild(name);
+        grid.appendChild(wrap);
+      }
+
+      showStatus('');
+    }
+
+    function navigate(path){
+      const p = normPath(path);
+      setURL(p);
+      loadDir(p);
+    }
+
+    // Initial path: ?p=/some/dir/ or #/some/dir/ or default to root ("/")
+    const sp = new URLSearchParams(location.search);
+    let start = sp.get('p') || (location.hash ? location.hash.slice(1) : '/');
+    loadDir(normPath(start));
+
+    // Support back/forward buttons
+    window.addEventListener('popstate', (e)=>{
+      const p = e.state?.p || new URLSearchParams(location.search).get('p') || '/';
+      loadDir(normPath(p));
+    });
+  })();
+  </script>
+</body>
+</html>
