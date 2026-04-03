@@ -77,7 +77,7 @@
       const parts = normPath(path).split('/').filter(Boolean);
       let acc = '/';
       const root = document.createElement('a');
-      root.href = '#'; root.textContent = '/';
+      root.href = '#'; root.textContent = '(root)';
       root.addEventListener('click', (e)=>{ e.preventDefault(); navigate('/'); });
       crumbs.appendChild(root);
       for(const part of parts){
