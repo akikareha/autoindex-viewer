@@ -7,14 +7,21 @@
   <title>Image Gallery (autoindex viewer)</title>
   <style>
     :root { --gap: 12px; --tile: 180px; }
+    @media (max-width: 600px) {
+      :root { --tile: 140px; }
+    }
     body { font-family: system-ui, sans-serif; margin: 20px; }
     header { display:flex; align-items:center; gap:10px; flex-wrap: wrap; }
     h1 { font-size: 1.1rem; margin: 0; font-weight: 600; }
     #crumbs a { color: #0a58ca; text-decoration: none; }
     #crumbs a:hover { text-decoration: underline; }
     #status { color: #666; font-size: .9rem; }
-    .grid { display: flex; flex-wrap: wrap; gap: var(--gap); margin-top: 12px; }
-    .item { width: var(--tile); text-align: center; font-size: 0.85rem; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(var(--tile), 1fr));
+      gap: var(--gap);
+    }
+    .item { text-align: center; font-size: 0.85rem; }
     .item a { text-decoration: none; color: #333; }
     .thumb { width: var(--tile); height: 140px; display:grid; place-items:center; border: 1px solid #eee; border-radius: 10px; overflow: hidden; background: #fafafa; }
     .thumb img { max-width: 100%; max-height: 100%; object-fit: contain; display:block; }
@@ -32,6 +39,38 @@
       }
       #status { color: #9aa0a6; }
     }
+    #modal {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+    }
+    #modal.hidden { display: none; }
+    #modal .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+    }
+    #modal .content {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    #modal img {
+      max-width: 90%;
+      max-height: 80%;
+    }
+    #modal .bar {
+      display: flex;
+      gap: 6px;
+      width: 90%;
+    }
+    #modal input {
+      flex: 1;
+    }
   </style>
 </head>
 <body>
@@ -42,6 +81,19 @@
   </header>
 
   <div id="grid" class="grid"></div>
+
+  <div id="modal" class="hidden">
+    <div class="overlay"></div>
+    <div class="content">
+      <img id="modal-img" />
+      <div class="bar">
+        <input id="modal-url" readonly />
+        <button id="copy-btn">Copy</button>
+        <button id="open-btn">Open</button>
+        <button id="close-btn">✕</button>
+      </div>
+    </div>
+  </div>
 
   <script>
   (function(){
@@ -91,6 +143,91 @@
       }
     }
 
+    function safeDecode(s){
+      try {
+        return decodeURIComponent(s);
+      } catch(_) {
+        return s;
+      }
+    }
+
+    const modal = document.getElementById('modal');
+    const modalImg = document.getElementById('modal-img');
+    const modalURL = document.getElementById('modal-url');
+
+    let imageList = [];
+    let currentIndex = -1;
+
+    function openModal(url){
+      currentIndex = imageList.indexOf(url);
+      modalImg.src = url;
+      modalURL.value = location.origin + url;
+      modal.classList.remove('hidden');
+    }
+
+    function closeModal(){
+      modal.classList.add('hidden');
+    }
+
+    document.getElementById('close-btn').onclick = closeModal;
+
+    document.getElementById('open-btn').onclick = ()=>{
+      window.open(modalImg.src, '_blank');
+    };
+
+    document.getElementById('copy-btn').onclick = ()=>{
+      navigator.clipboard.writeText(modalURL.value).catch(()=>{
+        prompt("Copy this URL:", modalURL.value);
+      });
+    };
+
+    modal.addEventListener('click', (e)=>{
+      if(e.target.classList.contains('content')){
+        closeModal();
+      }
+    });
+
+    document.addEventListener('keydown', (e)=>{
+      if(modal.classList.contains('hidden')) return;
+
+      if(e.key === 'Escape') closeModal();
+
+      if(e.key === 'ArrowRight'){
+        currentIndex = (currentIndex + 1) % imageList.length;
+        openModal(imageList[currentIndex]);
+      }
+
+      if(e.key === 'ArrowLeft'){
+        currentIndex = (currentIndex - 1 + imageList.length) % imageList.length;
+        openModal(imageList[currentIndex]);
+      }
+    });
+
+    let touchStartX = 0;
+
+    modal.addEventListener('touchstart', (e)=>{
+      touchStartX = e.touches[0].clientX;
+    }, { passive: true });
+
+    modal.addEventListener('touchend', (e)=>{
+      const touchEndX = e.changedTouches[0].clientX;
+      const dx = touchEndX - touchStartX;
+
+      const threshold = 50;
+
+      if(Math.abs(dx) < threshold) return;
+
+      if(dx > 0){
+        // right swipe: prev
+        currentIndex = (currentIndex - 1 + imageList.length) % imageList.length;
+      } else {
+        // left swipe: next
+        currentIndex = (currentIndex + 1) % imageList.length;
+      }
+
+      openModal(imageList[currentIndex]);
+    }, { passive: true });
+
     async function loadDir(path){
       const dirURL = buildAbsURL(path);
       showStatus('Loading ' + dirURL.pathname + ' …');
@@ -123,7 +260,7 @@
       // Folders first, then files by name
       items.sort((a,b)=>{
         if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
-        return a.href.localeCompare(b.href);
+        return a.href.localeCompare(b.href, undefined, { numeric: true });
       });
 
       if(items.length === 0){
@@ -131,9 +268,12 @@
         return;
       }
 
+      imageList = [];
+
       for(const it of items){
         if (!it.isDir && !it.isImg) continue; // show only folders + image files
         const full = new URL(it.href, dirURL).pathname; // NOTE: base must be absolute URL
+        imageList.push(full);
 
         const wrap = document.createElement('div');
         wrap.className = 'item';
@@ -144,7 +284,7 @@
 
         const name = document.createElement('div');
         name.className = 'name';
-        name.textContent = decodeURIComponent(it.href.replace(/\/$/, ''));
+        name.textContent = safeDecode(it.href.replace(/\/$/, ''));
 
         if(it.isDir){
           const icon = document.createElement('div');
@@ -154,12 +294,12 @@
           tile.addEventListener('click', (e)=>{ e.preventDefault(); navigate(full); });
         } else if (it.isImg){
           const img = document.createElement('img');
-          img.loading = 'eager';
+          img.loading = 'lazy';
           img.decoding = 'async';
           img.src = full;
           tile.appendChild(img);
-          // click opens original image in new tab
-          tile.addEventListener('click', (e)=>{ e.preventDefault(); window.open(full, '_blank'); });
+          // click opens original image in modal window
+          tile.addEventListener('click', (e)=>{ e.preventDefault(); openModal(full); });
         }
 
         wrap.appendChild(tile);
