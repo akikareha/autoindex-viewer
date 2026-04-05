@@ -24,7 +24,13 @@
     .item { text-align: center; font-size: 0.85rem; }
     .item a { text-decoration: none; color: #333; }
     .thumb { width: var(--tile); height: 140px; display:grid; place-items:center; border: 1px solid #eee; border-radius: 10px; overflow: hidden; background: #fafafa; }
-    .thumb img { max-width: 100%; max-height: 100%; object-fit: contain; display:block; }
+    .thumb img,
+    .thumb video {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display:block;
+    }
     .folder { font-size: 48px; line-height: 1; }
     .name { margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .hidden { display:none; }
@@ -59,7 +65,8 @@
       justify-content: center;
       gap: 10px;
     }
-    #modal img {
+    #modal img,
+    #modal video {
       max-width: 90%;
       max-height: 80%;
     }
@@ -86,6 +93,7 @@
     <div class="overlay"></div>
     <div class="content">
       <img id="modal-img" />
+      <video id="modal-video" controls class="hidden"></video>
       <div class="bar">
         <input id="modal-url" readonly />
         <button id="copy-btn">Copy</button>
@@ -153,26 +161,49 @@
 
     const modal = document.getElementById('modal');
     const modalImg = document.getElementById('modal-img');
+    const modalVideo = document.getElementById('modal-video');
     const modalURL = document.getElementById('modal-url');
 
-    let imageList = [];
+    let mediaList = [];
     let currentIndex = -1;
 
-    function openModal(url){
-      currentIndex = imageList.indexOf(url);
-      modalImg.src = url;
+    function stopMedia(){
+      modalVideo.pause();
+      modalVideo.currentTime = 0;
+    }
+
+    function openModal(url, isVideo){
+      stopMedia();
+
+      currentIndex = mediaList.indexOf(url);
+
+      if(isVideo){
+        modalImg.classList.add('hidden');
+        modalVideo.classList.remove('hidden');
+        modalVideo.src = url;
+        modalVideo.autoplay = true;
+      } else {
+        modalVideo.classList.add('hidden');
+        modalImg.classList.remove('hidden');
+        modalImg.src = url;
+      }
+
       modalURL.value = location.origin + url;
       modal.classList.remove('hidden');
     }
 
     function closeModal(){
+      stopMedia();
       modal.classList.add('hidden');
     }
 
     document.getElementById('close-btn').onclick = closeModal;
 
     document.getElementById('open-btn').onclick = ()=>{
-      window.open(modalImg.src, '_blank');
+      const src = modalVideo.classList.contains('hidden')
+        ? modalImg.src
+        : modalVideo.src;
+      window.open(src, '_blank');
     };
 
     document.getElementById('copy-btn').onclick = ()=>{
@@ -193,13 +224,13 @@
       if(e.key === 'Escape') closeModal();
 
       if(e.key === 'ArrowRight'){
-        currentIndex = (currentIndex + 1) % imageList.length;
-        openModal(imageList[currentIndex]);
+        currentIndex = (currentIndex + 1) % mediaList.length;
+        openModal(mediaList[currentIndex].url, mediaList[currentIndex].isVideo);
       }
 
       if(e.key === 'ArrowLeft'){
-        currentIndex = (currentIndex - 1 + imageList.length) % imageList.length;
-        openModal(imageList[currentIndex]);
+        currentIndex = (currentIndex - 1 + mediaList.length) % mediaList.length;
+        openModal(mediaList[currentIndex].url, mediaList[currentIndex].isVideo);
       }
     });
 
@@ -219,13 +250,13 @@
 
       if(dx > 0){
         // right swipe: prev
-        currentIndex = (currentIndex - 1 + imageList.length) % imageList.length;
+        currentIndex = (currentIndex - 1 + mediaList.length) % mediaList.length;
       } else {
         // left swipe: next
-        currentIndex = (currentIndex + 1) % imageList.length;
+        currentIndex = (currentIndex + 1) % mediaList.length;
       }
 
-      openModal(imageList[currentIndex]);
+      openModal(mediaList[currentIndex].url, mediaList[currentIndex].isVideo);
     }, { passive: true });
 
     async function loadDir(path){
@@ -250,12 +281,18 @@
       const anchors = Array.from(doc.querySelectorAll('a'));
 
       const IMG_RE = /\.(png|jpe?g|gif|webp|svg)$/i;
+      const VIDEO_RE = /\.(mp4|webm)$/i;
 
       // Nginx autoindex often has Parent Directory as "../"; skip that.
       const items = anchors
         .map(a => a.getAttribute('href'))
         .filter(href => href && href !== '../')
-        .map(href => ({ href, isDir: href.endsWith('/'), isImg: IMG_RE.test(href) }));
+        .map(href => ({
+          href,
+          isDir: href.endsWith('/'),
+          isImg: IMG_RE.test(href),
+          isVideo: VIDEO_RE.test(href)
+        }));
 
       // Folders first, then files by name
       items.sort((a,b)=>{
@@ -268,12 +305,16 @@
         return;
       }
 
-      imageList = [];
+      mediaList = [];
 
       for(const it of items){
-        if (!it.isDir && !it.isImg) continue; // show only folders + image files
+        // show only folders + image + video files
+        if (!it.isDir && !it.isImg && !it.isVideo) continue;
         const full = new URL(it.href, dirURL).pathname; // NOTE: base must be absolute URL
-        imageList.push(full);
+        mediaList.push({
+          url: full,
+          isVideo: it.isVideo
+        });
 
         const wrap = document.createElement('div');
         wrap.className = 'item';
@@ -299,7 +340,23 @@
           img.src = full;
           tile.appendChild(img);
           // click opens original image in modal window
-          tile.addEventListener('click', (e)=>{ e.preventDefault(); openModal(full); });
+          tile.addEventListener('click', (e)=>{ e.preventDefault(); openModal(full, false); });
+        } else if (it.isVideo){
+          const video = document.createElement('video');
+          video.src = full;
+          video.muted = true;
+          video.loop = true;
+          video.playsInline = true;
+          video.autoplay = true; // light preview
+          video.style.maxWidth = '100%';
+          video.style.maxHeight = '100%';
+          video.preload = 'metadata';
+          tile.appendChild(video);
+
+          tile.addEventListener('click', (e)=>{
+            e.preventDefault();
+            openModal(full, true);
+          });
         }
 
         wrap.appendChild(tile);
