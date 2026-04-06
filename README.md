@@ -1,8 +1,8 @@
 # DirGallery - An Image Gallery by Auto Index
 
-A zero‑backend, client‑side image gallery that reads an Nginx **autoindex** directory and renders a lightweight, browsable grid - folders included. Drop one file (**`view.html`**) at your site root, and link to it with **`?p=/your/path/`**.
+A zero‑backend, client‑side image gallery that reads an Nginx **autoindex** directory and renders a lightweight, browsable grid - folders included. Drop three files (`view.html`, `style.css`, `app.js`) at your site root, and link to `view.html` with `?p=/your/path/`.
 
-> **Provenance:** This README and the accompanying `view.html` were generated with **ChatGPT 5**.
+> **Provenance:** This README and the accompanying three files were generated with **ChatGPT 5**.
 
 ---
 
@@ -21,7 +21,7 @@ When you already host images behind Nginx and keep directory listing (`autoindex
 ## Quick start
 
 1. **Enable autoindex** for your image directories (see Nginx sample below).
-2. Put `view.html` ** at the web root** of the same site (e.g. `https://icon.example.org/view.html`).
+2. Put `view.html`, `style.css`, `app.js` ** at the web root** of the same site (e.g. `https://icon.example.org/view.html`).
 3. Open one of these:
    - `https://icon.example.org/view.html` (root)
    - `https://icon.example.org/view.html?p=/birds/` (start in a subdirectory)
@@ -65,7 +65,7 @@ No CORS configuration is required because the viewer fetches the same origin it�
 
 ## Customization
 
-All tweaks are in plain HTML/CSS/JS inside `view.html`.
+All tweaks are in plain HTML/CSS/JS.
 
 - **File types:** Extend `IMG_RE` (default: `png|jpe?g|gif|webp|svg`). For AVIF, add `avif`.
 - **Grid size / spacing:** Edit CSS custom properties at the top:
