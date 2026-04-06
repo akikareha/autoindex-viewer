@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
-  <title>Image Gallery (autoindex viewer)</title>
+  <title>DirGallery</title>
   <style>
     :root { --gap: 12px; --tile: 180px; }
     @media (max-width: 600px) {
@@ -82,7 +82,7 @@
 </head>
 <body>
   <header>
-    <h1>Image Gallery</h1>
+    <h1>DirGallery</h1>
     <div id="crumbs"></div>
     <div id="status" class="hidden"></div>
   </header>
@@ -164,6 +164,11 @@
     const modalVideo = document.getElementById('modal-video');
     const modalURL = document.getElementById('modal-url');
 
+    modalVideo.setAttribute('tabindex', '-1');
+    modal.addEventListener('click', ()=>{
+      document.body.focus();
+    });
+
     let mediaList = [];
     let currentIndex = -1;
 
@@ -175,7 +180,7 @@
     function openModal(url, isVideo){
       stopMedia();
 
-      currentIndex = mediaList.indexOf(url);
+      currentIndex = mediaList.findIndex(m => m.url === url);
 
       if(isVideo){
         modalImg.classList.add('hidden');
@@ -220,6 +225,10 @@
 
     document.addEventListener('keydown', (e)=>{
       if(modal.classList.contains('hidden')) return;
+
+      if(['ArrowLeft','ArrowRight','Escape'].includes(e.key)){
+        e.preventDefault();
+      }
 
       if(e.key === 'Escape') closeModal();
 

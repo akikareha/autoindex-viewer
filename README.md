@@ -1,4 +1,4 @@
-# Autoindex Image Gallery (Single‑File)
+# DirGallery - An Image Gallery by Auto Index
 
 A zero‑backend, client‑side image gallery that reads an Nginx **autoindex** directory and renders a lightweight, browsable grid - folders included. Drop one file (**`view.html`**) at your site root, and link to it with **`?p=/your/path/`**.
 

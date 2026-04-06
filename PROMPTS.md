@@ -1,4 +1,4 @@
-# PROMPTS.md - Autoindex Image Gallery
+# PROMPTS.md - DirGallery - An Image Gallery by Auto Index
 
 > **Provenance:** This program and docs were generated with **ChatGPT 5**.
 
