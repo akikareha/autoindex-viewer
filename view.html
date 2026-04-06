@@ -24,10 +24,15 @@
     .item { text-align: center; font-size: 0.85rem; }
     .item a { text-decoration: none; color: #333; }
     .thumb { width: var(--tile); height: 140px; display:grid; place-items:center; border: 1px solid #eee; border-radius: 10px; overflow: hidden; background: #fafafa; }
-    .thumb img,
-    .thumb video {
+    .thumb img {
       max-width: 100%;
       max-height: 100%;
+      object-fit: contain;
+      display:block;
+    }
+    .thumb video {
+      width: 100%;
+      height: 100%;
       object-fit: contain;
       display:block;
     }
@@ -94,6 +99,7 @@
     <div class="content">
       <img id="modal-img" />
       <video id="modal-video" controls class="hidden"></video>
+      <div id="modal-dir" class="folder hidden">📁</div>
       <div class="bar">
         <input id="modal-url" readonly />
         <button id="copy-btn">Copy</button>
@@ -141,12 +147,23 @@
       root.addEventListener('click', (e)=>{ e.preventDefault(); navigate('/'); });
       crumbs.appendChild(root);
       for(const part of parts){
-        const sep = document.createTextNode(' / ');
+        const sep = document.createElement('span');
+        sep.textContent = ' / ';
+        sep.style.userSelect = 'none';
         crumbs.appendChild(sep);
+
         acc += part + '/';
+        const currentPath = acc;
+
         const a = document.createElement('a');
-        a.href = '#'; a.textContent = part;
-        a.addEventListener('click', (e)=>{ e.preventDefault(); navigate(acc); });
+        a.href = '#';
+        a.textContent = part;
+
+        a.addEventListener('click', (e)=>{
+          e.preventDefault();
+          navigate(currentPath);
+        });
+
         crumbs.appendChild(a);
       }
     }
@@ -162,6 +179,7 @@
     const modal = document.getElementById('modal');
     const modalImg = document.getElementById('modal-img');
     const modalVideo = document.getElementById('modal-video');
+    const modalDir = document.getElementById('modal-dir');
     const modalURL = document.getElementById('modal-url');
 
     modalVideo.setAttribute('tabindex', '-1');
@@ -177,19 +195,29 @@
       modalVideo.currentTime = 0;
     }
 
-    function openModal(url, isVideo){
+    function openModal(url, isVideo, isDir){
       stopMedia();
 
       currentIndex = mediaList.findIndex(m => m.url === url);
 
-      if(isVideo){
+      if(isDir){
+        modalImg.classList.add('hidden');
+        modalVideo.classList.add('hidden');
+        modalDir.classList.remove('hidden');
+
+        modalURL.value = '[DIR] ' + location.origin + url;
+      } else if(isVideo){
         modalImg.classList.add('hidden');
         modalVideo.classList.remove('hidden');
+        modalDir.classList.add('hidden');
+
         modalVideo.src = url;
         modalVideo.autoplay = true;
       } else {
         modalVideo.classList.add('hidden');
         modalImg.classList.remove('hidden');
+        modalDir.classList.add('hidden');
+
         modalImg.src = url;
       }
 
@@ -212,8 +240,8 @@
     };
 
     document.getElementById('copy-btn').onclick = ()=>{
-      navigator.clipboard.writeText(modalURL.value).catch(()=>{
-        prompt("Copy this URL:", modalURL.value);
+      navigator.clipboard.writeText(modalURL.value).then(()=>{
+        alert('Copied!');
       });
     };
 
@@ -226,7 +254,7 @@
     document.addEventListener('keydown', (e)=>{
       if(modal.classList.contains('hidden')) return;
 
-      if(['ArrowLeft','ArrowRight','Escape'].includes(e.key)){
+      if(['ArrowLeft','ArrowRight','Escape','Enter'].includes(e.key)){
         e.preventDefault();
       }
 
@@ -234,19 +262,43 @@
 
       if(e.key === 'ArrowRight'){
         currentIndex = (currentIndex + 1) % mediaList.length;
-        openModal(mediaList[currentIndex].url, mediaList[currentIndex].isVideo);
+        openModal(
+          mediaList[currentIndex].url,
+          mediaList[currentIndex].isVideo,
+          mediaList[currentIndex].isDir
+        );
       }
 
       if(e.key === 'ArrowLeft'){
         currentIndex = (currentIndex - 1 + mediaList.length) % mediaList.length;
-        openModal(mediaList[currentIndex].url, mediaList[currentIndex].isVideo);
+        openModal(
+          mediaList[currentIndex].url,
+          mediaList[currentIndex].isVideo,
+          mediaList[currentIndex].isDir
+        );
+      }
+
+      if(e.key === 'Enter'){
+        if (mediaList[currentIndex].isDir){
+          closeModal();
+          navigate(mediaList[currentIndex].url);
+        }
       }
     });
 
+    let isSwiping = false;
     let touchStartX = 0;
 
     modal.addEventListener('touchstart', (e)=>{
       touchStartX = e.touches[0].clientX;
+      isSwiping = false;
+    }, { passive: true });
+
+    modal.addEventListener('touchmove', (e)=>{
+      const dx = e.touches[0].clientX - touchStartX;
+      if (Math.abs(dx) > 10) {
+        isSwiping = true;
+      }
     }, { passive: true });
 
     modal.addEventListener('touchend', (e)=>{
@@ -265,7 +317,11 @@
         currentIndex = (currentIndex + 1) % mediaList.length;
       }
 
-      openModal(mediaList[currentIndex].url, mediaList[currentIndex].isVideo);
+      openModal(
+        mediaList[currentIndex].url,
+        mediaList[currentIndex].isVideo,
+        mediaList[currentIndex].isDir
+      );
     }, { passive: true });
 
     async function loadDir(path){
@@ -322,7 +378,8 @@
         const full = new URL(it.href, dirURL).pathname; // NOTE: base must be absolute URL
         mediaList.push({
           url: full,
-          isVideo: it.isVideo
+          isVideo: it.isVideo,
+          isDir: it.isDir
         });
 
         const wrap = document.createElement('div');
@@ -341,7 +398,14 @@
           icon.className = 'folder';
           icon.textContent = '📁';
           tile.appendChild(icon);
-          tile.addEventListener('click', (e)=>{ e.preventDefault(); navigate(full); });
+          tile.addEventListener('click', (e)=>{
+            if (isSwiping) {
+              isSwiping = false;
+              return;
+            }
+            e.preventDefault();
+            navigate(full);
+          });
         } else if (it.isImg){
           const img = document.createElement('img');
           img.loading = 'lazy';
@@ -349,7 +413,14 @@
           img.src = full;
           tile.appendChild(img);
           // click opens original image in modal window
-          tile.addEventListener('click', (e)=>{ e.preventDefault(); openModal(full, false); });
+          tile.addEventListener('click', (e)=>{
+            if (isSwiping) {
+              isSwiping = false;
+              return;
+            }
+            e.preventDefault();
+            openModal(full, false, false);
+          });
         } else if (it.isVideo){
           const video = document.createElement('video');
           video.src = full;
@@ -363,8 +434,12 @@
           tile.appendChild(video);
 
           tile.addEventListener('click', (e)=>{
+            if (isSwiping) {
+              isSwiping = false;
+              return;
+            }
             e.preventDefault();
-            openModal(full, true);
+            openModal(full, true, false);
           });
         }
 
