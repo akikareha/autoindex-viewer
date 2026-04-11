@@ -3,4 +3,3 @@ tidy-mark: no
 write-back: yes
 indent: auto
 wrap: 0
-output-xhtml: yes
