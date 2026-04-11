@@ -7,18 +7,31 @@
   :root {
     --tile: 140px;
   }
+
+  #crumbs a {
+    padding: 10px 14px;
+    font-size: 1rem;
+  }
 }
 
 body {
   margin: 20px;
+  padding-top: 10px;
+  padding-bottom: 20px;
   font-family: system-ui, sans-serif;
 }
 
 header {
+  z-index: 10;
+  background: inherit;
+  backdrop-filter: blur(6px);
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+  padding: 10px 0;
   display: flex;
+  position: sticky;
+  top: 0;
 }
 
 h1 {
@@ -27,13 +40,34 @@ h1 {
   font-weight: 600;
 }
 
+#crumbs {
+  flex-wrap: wrap;
+  gap: 6px;
+  display: flex;
+}
+
 #crumbs a {
   color: #0a58ca;
+  background: #f0f0f0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: .9rem;
   text-decoration: none;
+  transition: background .15s, transform 50ms;
+  display: inline-block;
 }
 
 #crumbs a:hover {
-  text-decoration: underline;
+  background: #e0e0e0;
+}
+
+#crumbs a:active {
+  transform: scale(.95);
+}
+
+#crumbs span {
+  color: #888;
+  user-select: none;
 }
 
 #status {
@@ -110,6 +144,15 @@ h1 {
 
   #crumbs a {
     color: #8bb4ff;
+    background: #1e1e22;
+  }
+
+  #crumbs a:hover {
+    background: #2a2a30;
+  }
+
+  #crumbs span {
+    color: #777;
   }
 
   .item a {
@@ -165,4 +208,19 @@ h1 {
 
 #modal input {
   flex: 1;
+}
+
+#repo-link {
+  z-index: 20;
+  color: #fff;
+  background: #0a58ca80;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: .9rem;
+  text-decoration: none;
+  transition: transform .1s, box-shadow .1s, background .2s;
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  box-shadow: 0 4px 12px #0003;
 }
