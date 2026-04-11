@@ -1,35 +1,34 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja">
 <head>
-<meta name="generator" content=
-"HTML Tidy for HTML5 for Linux version 5.8.0">
-<meta charset="UTF-8">
-<meta name="viewport" content=
-"width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
-<title>DirGallery</title>
-<link rel="stylesheet" href="style.css">
-<script src="app.js" defer></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>DirGallery</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="app.js" defer="defer"></script>
 </head>
 <body>
-<header>
-<h1>DirGallery</h1>
-<div id="crumbs"></div>
-<div id="status" class="hidden"></div>
-</header>
-<div id="grid" class="grid"></div>
-<div id="modal" class="hidden">
-<div class="overlay"></div>
-<div class="content"><img id="modal-img"> <video id="modal-video"
-controls="" class="hidden"></video>
-<div id="modal-dir" class="folder hidden">📁</div>
-<div class="bar"><input id="modal-url" readonly> <button id=
-"copy-btn">Copy</button> <button id="open-btn">Open</button>
-<button id="close-btn">✕</button></div>
-</div>
-</div>
-<div><a id="repo-link" href=
-"https://tea.kareha.org/site/dirgallery" target="_blank" rel=
-"noopener">⛭ Repo</a></div>
+  <header>
+    <h1>DirGallery</h1>
+    <div id="crumbs"></div>
+    <div id="status" class="hidden"></div>
+  </header>
+  <div id="grid" class="grid"></div>
+  <div id="modal" class="hidden">
+    <div class="overlay"></div>
+    <div class="content">
+      <img id="modal-img" class="hidden" /> <video id="modal-video" controls="" class="hidden"></video>
+      <div id="modal-dir" class="folder hidden">
+        📁
+      </div>
+      <div class="bar">
+        <input id="modal-url" readonly="readonly" /> <button id="copy-btn">Copy</button> <button id="open-btn">Open</button> <button id="close-btn">✕</button>
+      </div>
+    </div>
+  </div>
+  <div>
+    <a id="repo-link" href="https://tea.kareha.org/site/dirgallery" target="_blank" rel="noopener">⛭ Repo</a>
+  </div>
 </body>
 </html>
